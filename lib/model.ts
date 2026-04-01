@@ -1,4 +1,5 @@
 import * as tf from "@tensorflow/tfjs";
+import * as mobilenetModule from "@tensorflow-models/mobilenet";
 
 export const IMAGE_SIZE = 224; // MobileNet input size
 export const ANIMAL_CLASSES = [
@@ -36,32 +37,20 @@ export interface SerializedModel {
 }
 
 // ─── Create a transfer-learning model on top of MobileNet ───
-// We load MobileNet, freeze it, and add a trainable classification head.
-let baseModel: tf.LayersModel | null = null;
+// We load MobileNet via @tensorflow-models/mobilenet, use .infer(img, true)
+// for 1280-dim embedding extraction, then train a classification head.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let mobilenet: any = null;
+const FEATURE_DIM = 1280; // mobilenet v2 alpha=1.0 .infer(img, embedding=true) output dim
 
-async function getBaseModel(): Promise<tf.LayersModel> {
-  if (baseModel) return baseModel;
-  // Load MobileNet V2 truncated at the global average pooling layer
-  const mobilenet = await tf.loadLayersModel(
-    "https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v2_1.0_224/model.json"
-  );
-  // Use output of the global_average_pooling2d layer (1280-dim feature vector)
-  const layer = mobilenet.getLayer("global_average_pooling2d_1")
-    || mobilenet.layers[mobilenet.layers.length - 2]; // fallback
-  baseModel = tf.model({
-    inputs: mobilenet.inputs,
-    outputs: layer.output as tf.SymbolicTensor,
-  });
-  baseModel.trainable = false;
-  return baseModel;
+async function getMobilenet() {
+  if (mobilenet) return mobilenet;
+  mobilenet = await mobilenetModule.load({ version: 2, alpha: 1.0 });
+  return mobilenet;
 }
 
 export async function createModel(): Promise<tf.LayersModel> {
-  const base = await getBaseModel();
-  const featureDim =
-    (base.outputShape as number[])[1] || 1280;
-
-  const input = tf.input({ shape: [featureDim] });
+  const input = tf.input({ shape: [FEATURE_DIM] });
   let x = tf.layers.dense({ units: 128, activation: "relu" }).apply(input) as tf.SymbolicTensor;
   x = tf.layers.dropout({ rate: 0.3 }).apply(x) as tf.SymbolicTensor;
   const output = tf.layers
@@ -77,22 +66,20 @@ export async function createModel(): Promise<tf.LayersModel> {
   return head;
 }
 
-// ─── Extract features from images using MobileNet base ───
+// ─── Extract features from images using MobileNet ───
 export async function extractFeatures(
   images: HTMLImageElement[] | ImageData[]
 ): Promise<tf.Tensor2D> {
-  const base = await getBaseModel();
-  const tensors = images.map((img) => {
-    let t = tf.browser.fromPixels(img).toFloat();
-    t = tf.image.resizeBilinear(t as tf.Tensor3D, [IMAGE_SIZE, IMAGE_SIZE]);
-    t = t.div(127.5).sub(1); // normalize to [-1, 1]
-    return t;
-  });
-  const batch = tf.stack(tensors) as tf.Tensor4D;
-  tensors.forEach((t) => t.dispose());
-  const features = base.predict(batch) as tf.Tensor2D;
-  batch.dispose();
-  return features;
+  const net = await getMobilenet();
+  const features: tf.Tensor2D[] = [];
+  for (const img of images) {
+    // .infer with embedding=true returns a 1024-dim feature vector
+    const embedding = net.infer(img, true) as tf.Tensor2D;
+    features.push(embedding);
+  }
+  const stacked = tf.concat(features, 0) as tf.Tensor2D;
+  features.forEach((f) => f.dispose());
+  return stacked;
 }
 
 // ─── Train the head model on extracted features ───

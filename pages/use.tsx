@@ -219,7 +219,7 @@ export default function UseModel() {
           )}
 
           {/* Download buttons */}
-          {serializedModel && serializedModel.headWeights.length > 0 && (
+          {serializedModel && serializedModel.headWeights?.length > 0 && (
             <div className="mt-6 pt-4 border-t border-gray-800">
               <h3 className="text-sm font-semibold text-gray-400 mb-3">Download Model</h3>
               <div className="space-y-2">
