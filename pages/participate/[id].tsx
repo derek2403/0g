@@ -6,7 +6,7 @@ import {
 } from "wagmi";
 import { FL_CONTRACT_ABI, FL_CONTRACT_ADDRESS } from "@/lib/fl-contract-abi";
 import {
-  ANIMAL_CLASSES,
+  DEFAULT_CLASSES,
   createModel,
   extractFeatures,
   trainOnFeatures,
@@ -65,6 +65,7 @@ export default function Participate() {
   const { isSuccess: submitConfirmed } = useWaitForTransactionReceipt({ hash: submitHash });
 
   // Local state
+  const [classes, setClasses] = useState<string[]>(DEFAULT_CLASSES);
   const [images, setImages] = useState<LabeledImage[]>([]);
   const [selectedLabel, setSelectedLabel] = useState(0);
   const [model, setModel] = useState<tf.LayersModel | null>(null);
@@ -140,23 +141,24 @@ export default function Participate() {
           const data = await resp.json();
           if (data.success && data.content) {
             const serialized: SerializedModel = JSON.parse(data.content);
-            if (serialized.headWeights.length > 0) {
+            if (serialized.classes?.length > 0) setClasses(serialized.classes);
+            if (serialized.headWeights?.length > 0) {
               head = await deserializeHead(serialized);
               addLog("Loaded global model weights from 0G Storage");
             } else {
-              head = await createModel();
+              head = await createModel(serialized.classes?.length || classes.length);
               addLog("Global model has no weights yet, using fresh initialization");
             }
           } else {
-            head = await createModel();
+            head = await createModel(classes.length);
             addLog("Could not download global model, using fresh initialization");
           }
         } catch {
-          head = await createModel();
+          head = await createModel(classes.length);
           addLog("Failed to load global model, using fresh initialization");
         }
       } else {
-        head = await createModel();
+        head = await createModel(classes.length);
         addLog("Created fresh model");
       }
 
@@ -172,7 +174,7 @@ export default function Participate() {
 
       const epochs = 15;
       addLog(`Training for ${epochs} epochs...`);
-      await trainOnFeatures(head, features, labels, epochs, (epoch, logs) => {
+      await trainOnFeatures(head, features, labels, classes.length, epochs, (epoch: number, logs: tf.Logs | undefined) => {
         const acc = logs?.acc ?? logs?.accuracy ?? 0;
         const loss = logs?.loss ?? 0;
         setTrainingProgress(((epoch + 1) / epochs) * 100);
@@ -180,7 +182,7 @@ export default function Participate() {
       });
 
       addLog("Evaluating model...");
-      const evalMetrics = await evaluateModel(head, features, labels);
+      const evalMetrics = await evaluateModel(head, features, labels, classes.length);
       setMetrics(evalMetrics);
       addLog(
         `Results: accuracy=${(evalMetrics.accuracy * 100).toFixed(1)}%, ` +
@@ -205,7 +207,7 @@ export default function Participate() {
     try {
       addLog("Serializing model weights...");
       const round = t ? Number(t.currentRound) : 0;
-      const serialized = await serializeHead(model, round, metrics);
+      const serialized = await serializeHead(model, round, metrics, classes);
 
       addLog("Uploading to 0G Storage...");
       const resp = await fetch("/api/storage/upload", {
@@ -310,7 +312,7 @@ export default function Participate() {
                       onChange={(e) => setSelectedLabel(Number(e.target.value))}
                       className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
                     >
-                      {ANIMAL_CLASSES.map((cls, i) => (
+                      {classes.map((cls, i) => (
                         <option key={cls} value={i}>{cls}</option>
                       ))}
                     </select>
@@ -336,11 +338,11 @@ export default function Participate() {
                         <div key={i} className="group relative">
                           <img
                             src={img.preview}
-                            alt={ANIMAL_CLASSES[img.label]}
+                            alt={classes[img.label]}
                             className="h-16 w-full rounded-lg object-cover"
                           />
                           <div className="absolute inset-x-0 bottom-0 rounded-b-lg bg-black/60 py-0.5 text-center text-[10px] text-white">
-                            {ANIMAL_CLASSES[img.label]}
+                            {classes[img.label]}
                           </div>
                           <button
                             onClick={() => removeImage(i)}
@@ -355,7 +357,7 @@ export default function Participate() {
 
                   {images.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-1">
-                      {ANIMAL_CLASSES.map((cls, i) => {
+                      {classes.map((cls, i) => {
                         const count = images.filter((img) => img.label === i).length;
                         if (count === 0) return null;
                         return (

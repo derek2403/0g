@@ -103,7 +103,7 @@ export default function Home() {
 
       {/* Instructions card */}
       <div className="absolute bottom-2 left-16 z-10">
-        <div className="flex h-[28rem] w-[28rem] flex-col rounded-2xl border border-gray-200 bg-white/95 shadow-xl backdrop-blur-sm">
+        <div className="flex h-[60vh] w-[35vw] flex-col rounded-2xl border border-gray-200 bg-white/95 shadow-xl backdrop-blur-sm">
           {/* Header */}
           <div className="shrink-0 border-b border-gray-100 px-5 pt-5 pb-3">
             <div className="text-xs font-semibold uppercase tracking-wider text-gray-400">
@@ -148,7 +148,7 @@ export default function Home() {
                   return (
                     <ul key={i} className="space-y-2 pl-1">
                       {block.items.map((item, j) => (
-                        <li key={j} className="flex gap-2 text-xs leading-relaxed text-gray-600">
+                        <li key={j} className="flex gap-2 text-sm leading-relaxed text-gray-600">
                           <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gray-400" />
                           {item}
                         </li>

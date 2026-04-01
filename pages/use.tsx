@@ -1,8 +1,7 @@
 import { useAccount, useReadContract } from "wagmi";
 import { FL_CONTRACT_ABI, FL_CONTRACT_ADDRESS } from "@/lib/fl-contract-abi";
 import {
-  ANIMAL_CLASSES,
-  createModel,
+  DEFAULT_CLASSES,
   deserializeHead,
   extractFeatures,
   loadImageFromFile,
@@ -116,7 +115,7 @@ export default function UseModel() {
           setMessages([
             {
               role: "assistant",
-              content: `Model loaded! "${t.name}" (Round ${serialized.round}).\n\nI can classify images into: ${ANIMAL_CLASSES.join(", ")}.\n\nUpload an image to get started.`,
+              content: `Model loaded! "${t.name}" (Round ${serialized.round}).\n\nI can classify images into: ${serialized.classes.join(", ")}.\n\nUpload an image to get started.`,
             },
           ]);
         } else {
@@ -153,7 +152,8 @@ export default function UseModel() {
       const probs = (model.predict(features) as { dataSync: () => Float32Array }).dataSync();
       features.dispose();
 
-      const predictions = ANIMAL_CLASSES.map((cls, i) => ({
+      const modelClasses = serializedModel?.classes || DEFAULT_CLASSES;
+      const predictions = modelClasses.map((cls, i) => ({
         class: cls,
         confidence: probs[i],
       })).sort((a, b) => b.confidence - a.confidence);
