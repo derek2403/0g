@@ -85,6 +85,21 @@ export default function UseModel() {
     args: selectedTaskId !== null ? [BigInt(selectedTaskId)] : undefined,
   });
 
+  // INFT data for selected model
+  const { data: tokenData } = useReadContract({
+    address: FL_CONTRACT_ADDRESS as `0x${string}`,
+    abi: FL_CONTRACT_ABI,
+    functionName: "getTokenData",
+    args: selectedTaskId !== null ? [BigInt(selectedTaskId)] : undefined,
+  });
+
+  const { data: metricsHistory } = useReadContract({
+    address: FL_CONTRACT_ADDRESS as `0x${string}`,
+    abi: FL_CONTRACT_ABI,
+    functionName: "getMetricsHistory",
+    args: selectedTaskId !== null ? [BigInt(selectedTaskId)] : undefined,
+  });
+
   // When task data loads, download the model
   useEffect(() => {
     if (!selectedTask || !isLoadingModel) return;
@@ -109,7 +124,7 @@ export default function UseModel() {
         const serialized: SerializedModel = JSON.parse(data.content);
         setSerializedModel(serialized);
 
-        if (serialized.headWeights.length > 0) {
+        if (serialized.headWeights?.length > 0) {
           setModelStatus("Loading model into TensorFlow.js...");
           const head = await deserializeHead(serialized);
           setModel(head);
@@ -241,19 +256,100 @@ export default function UseModel() {
             </div>
           )}
 
-          {/* Model info */}
-          {serializedModel && (
-            <div className="mt-4 pt-4 border-t border-gray-800 text-xs text-gray-500 space-y-1">
-              <div>Architecture: {serializedModel.architecture}</div>
-              <div>Round: {serializedModel.round}</div>
-              <div>Classes: {serializedModel.classes.length}</div>
-              {serializedModel.metrics.accuracy > 0 && (
-                <div className="text-green-400">
-                  Accuracy: {(serializedModel.metrics.accuracy * 100).toFixed(1)}%
-                </div>
-              )}
-            </div>
-          )}
+          {/* INFT Details */}
+          {selectedTaskId !== null && (() => {
+            const t = selectedTask as {
+              name: string; globalModelRoot: string; creator: string;
+              currentRound: bigint; totalRounds: bigint; completed: boolean;
+            } | undefined;
+            const tokenDataArr = (tokenData || []) as unknown as { dataDescription: string; dataHash: string }[];
+            const metricsArr = (metricsHistory || []) as unknown as {
+              accuracy: bigint; f1Score: bigint; precision_: bigint; recall: bigint; loss: bigint;
+            }[];
+            const lastM = metricsArr.length > 0 ? metricsArr[metricsArr.length - 1] : null;
+
+            return (
+              <div className="mt-4 pt-4 border-t border-gray-800 space-y-3">
+                {/* Model info */}
+                {serializedModel && (
+                  <div className="text-xs text-gray-500 space-y-1">
+                    <div>Architecture: {serializedModel.architecture}</div>
+                    <div>Round: {serializedModel.round}</div>
+                    <div>Classes: {serializedModel.classes?.length}</div>
+                  </div>
+                )}
+
+                {/* Final metrics */}
+                {lastM && (
+                  <div>
+                    <div className="text-xs font-semibold text-gray-400 mb-1">Final Metrics</div>
+                    <div className="grid grid-cols-2 gap-1 text-xs">
+                      <div className="text-green-400">Acc: {(Number(lastM.accuracy) / 100).toFixed(2)}%</div>
+                      <div className="text-blue-400">F1: {(Number(lastM.f1Score) / 100).toFixed(2)}%</div>
+                      <div className="text-yellow-400">Prec: {(Number(lastM.precision_) / 100).toFixed(2)}%</div>
+                      <div className="text-purple-400">Rec: {(Number(lastM.recall) / 100).toFixed(2)}%</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Metrics progress */}
+                {metricsArr.length > 0 && (
+                  <div>
+                    <div className="text-xs font-semibold text-gray-400 mb-1">Training Progress</div>
+                    <div className="space-y-1">
+                      {metricsArr.map((m, i) => (
+                        <div key={i} className="flex items-center gap-1 text-xs">
+                          <span className="text-gray-500 w-8">R{i}</span>
+                          <div className="flex-1 bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                            <div className="bg-green-500 h-full rounded-full" style={{ width: `${Number(m.accuracy) / 100}%` }} />
+                          </div>
+                          <span className="text-green-400 w-10 text-right">{(Number(m.accuracy) / 100).toFixed(1)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* INFT on-chain data */}
+                {tokenDataArr.length > 0 && (
+                  <div>
+                    <div className="text-xs font-semibold text-purple-400 mb-1">INFT #{selectedTaskId}</div>
+                    {tokenDataArr.map((d, i) => (
+                      <div key={i} className="text-xs font-mono text-gray-500 break-all">
+                        <div className="text-blue-400">{d.dataDescription}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* On-chain links */}
+                {t && (
+                  <div className="text-xs space-y-1">
+                    <div className="font-semibold text-gray-400">On-Chain</div>
+                    <div className="text-gray-500">
+                      Creator: <span className="font-mono text-gray-400">{t.creator?.slice(0, 8)}...{t.creator?.slice(-6)}</span>
+                    </div>
+                    <div className="text-gray-500 break-all">
+                      Model Root: <span className="font-mono text-blue-400">{t.globalModelRoot?.slice(0, 18)}...</span>
+                    </div>
+                    <div className="flex flex-col gap-1 mt-2">
+                      <a
+                        href={`https://chainscan-galileo.0g.ai/address/${FL_CONTRACT_ADDRESS}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 underline hover:text-blue-300"
+                      >
+                        View Contract on Explorer
+                      </a>
+                      {t.completed && (
+                        <span className="text-green-400 font-medium">INFT Minted</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Main: Chat interface */}

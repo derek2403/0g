@@ -1,30 +1,55 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+
+import {IERC7857} from "./interfaces/IERC7857.sol";
+import {IERC7857Authorize} from "./interfaces/IERC7857Authorize.sol";
+import {IntelligentData} from "./interfaces/IERC7857Metadata.sol";
+import {
+    IERC7857DataVerifier,
+    TransferValidityProof,
+    TransferValidityProofOutput
+} from "./interfaces/IERC7857DataVerifier.sol";
 
 /**
  * @title FederatedLearningINFT
- * @notice Coordinates federated learning rounds and mints the trained model as an INFT (ERC-7857 style).
- *         Each FL task tracks rounds, participant updates, metrics history, and the final aggregated model.
+ * @notice Coordinates federated learning rounds and mints the trained model as a
+ *         proper ERC-7857 Intelligent NFT. Each FL task tracks rounds, participant
+ *         updates, metrics history, and the final aggregated model.
+ * @dev Implements IERC7857 + IERC7857Authorize for on-chain model ownership,
+ *      encrypted weight transfer, and usage authorization.
  */
 contract FederatedLearningINFT is ERC721, Ownable {
-    // ──────────────────────────── Types ────────────────────────────
+    // ══════════════════════════════════════════════════════════════════
+    //  ERC-7857 STATE
+    // ══════════════════════════════════════════════════════════════════
+
+    IERC7857DataVerifier public verifier;
+    mapping(address => address) private _accessAssistants;
+    mapping(uint256 => IntelligentData[]) private _iDatas;
+    mapping(uint256 => mapping(address => bool)) private _authorized;
+    mapping(uint256 => address[]) private _authorizedUsers;
+
+    // ══════════════════════════════════════════════════════════════════
+    //  FL TYPES
+    // ══════════════════════════════════════════════════════════════════
 
     struct ModelMetrics {
         uint256 accuracy;    // scaled by 1e4 (e.g. 9250 = 92.50%)
-        uint256 f1Score;     // scaled by 1e4
-        uint256 precision_;  // scaled by 1e4
-        uint256 recall;      // scaled by 1e4
-        uint256 loss;        // scaled by 1e4
+        uint256 f1Score;
+        uint256 precision_;
+        uint256 recall;
+        uint256 loss;
         uint256 timestamp;
     }
 
     struct ParticipantUpdate {
         address participant;
-        string  storageRoot;   // 0G Storage Merkle root of gradient/weights
-        uint256 dataSize;      // number of training samples used
+        string  storageRoot;
+        uint256 dataSize;
         uint256 roundId;
         uint256 timestamp;
     }
@@ -32,8 +57,8 @@ contract FederatedLearningINFT is ERC721, Ownable {
     struct FLTask {
         string  name;
         string  description;
-        string  globalModelRoot;   // 0G Storage root of current global model
-        string  initialModelRoot;  // 0G Storage root of the very first model
+        string  globalModelRoot;
+        string  initialModelRoot;
         uint256 currentRound;
         uint256 totalRounds;
         uint256 minParticipants;
@@ -43,12 +68,9 @@ contract FederatedLearningINFT is ERC721, Ownable {
         uint256 createdAt;
     }
 
-    struct IntelligentData {
-        string  dataDescription;  // e.g. "0g://storage/{rootHash}"
-        bytes32 dataHash;
-    }
-
-    // ──────────────────────────── State ────────────────────────────
+    // ══════════════════════════════════════════════════════════════════
+    //  FL STATE
+    // ══════════════════════════════════════════════════════════════════
 
     uint256 public nextTaskId;
     uint256 public nextTokenId;
@@ -56,25 +78,24 @@ contract FederatedLearningINFT is ERC721, Ownable {
     mapping(uint256 => FLTask) public tasks;
     mapping(uint256 => address[]) public taskParticipants;
     mapping(uint256 => mapping(address => bool)) public isParticipant;
-
-    // taskId => roundId => updates[]
     mapping(uint256 => mapping(uint256 => ParticipantUpdate[])) public roundUpdates;
-    // taskId => roundId => participant => submitted
     mapping(uint256 => mapping(uint256 => mapping(address => bool))) public hasSubmitted;
-
-    // taskId => metrics history (one per round after aggregation)
     mapping(uint256 => ModelMetrics[]) public metricsHistory;
-
-    // tokenId => IntelligentData[]  (INFT encrypted model data)
-    mapping(uint256 => IntelligentData[]) public tokenData;
-    // tokenId => taskId
     mapping(uint256 => uint256) public tokenTask;
-
-    // taskId => participant => total data contributed
     mapping(uint256 => mapping(address => uint256)) public contributions;
 
-    // ──────────────────────────── Events ────────────────────────────
+    // ══════════════════════════════════════════════════════════════════
+    //  EVENTS
+    // ══════════════════════════════════════════════════════════════════
 
+    // ERC-7857 events
+    event Updated(uint256 indexed tokenId, IntelligentData[] oldDatas, IntelligentData[] newDatas);
+    event PublishedSealedKey(address indexed to, uint256 indexed tokenId, bytes[] sealedKeys);
+    event DelegateAccess(address indexed user, address indexed assistant);
+    event Authorization(address indexed from, address indexed to, uint256 indexed tokenId);
+    event AuthorizationRevoked(address indexed from, address indexed to, uint256 indexed tokenId);
+
+    // FL events
     event TaskCreated(uint256 indexed taskId, string name, address creator);
     event ParticipantRegistered(uint256 indexed taskId, address participant);
     event UpdateSubmitted(uint256 indexed taskId, uint256 roundId, address participant, string storageRoot);
@@ -83,11 +104,117 @@ contract FederatedLearningINFT is ERC721, Ownable {
     event TaskCompleted(uint256 indexed taskId, uint256 tokenId);
     event ModelMinted(uint256 indexed tokenId, uint256 indexed taskId, address owner);
 
-    // ──────────────────────────── Constructor ────────────────────────────
+    // ══════════════════════════════════════════════════════════════════
+    //  CONSTRUCTOR
+    // ══════════════════════════════════════════════════════════════════
 
-    constructor() ERC721("PrivTrain FL Model", "PRTFL") Ownable(msg.sender) {}
+    constructor(address _verifier) ERC721("PrivTrain FL Model", "PRTFL") Ownable(msg.sender) {
+        verifier = IERC7857DataVerifier(_verifier);
+    }
 
-    // ──────────────────────────── Task Management ────────────────────────────
+    // ══════════════════════════════════════════════════════════════════
+    //  ERC-7857: INTELLIGENT TRANSFER
+    // ══════════════════════════════════════════════════════════════════
+
+    function iTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId,
+        TransferValidityProof[] calldata proofs
+    ) external {
+        require(ownerOf(tokenId) == from, "Not owner");
+        require(to != address(0), "Invalid recipient");
+        require(proofs.length > 0, "Empty proofs");
+
+        TransferValidityProofOutput[] memory outputs = verifier.verifyTransferValidity(proofs);
+        require(outputs.length == _iDatas[tokenId].length, "Proof count mismatch");
+
+        bytes[] memory sealedKeys = new bytes[](outputs.length);
+        for (uint i = 0; i < outputs.length; i++) {
+            require(outputs[i].dataHash == _iDatas[tokenId][i].dataHash, "Data hash mismatch");
+            sealedKeys[i] = outputs[i].sealedKey;
+        }
+
+        _transfer(from, to, tokenId);
+        emit PublishedSealedKey(to, tokenId, sealedKeys);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  ERC-7857: DATA MANAGEMENT
+    // ══════════════════════════════════════════════════════════════════
+
+    function updateData(uint256 tokenId, IntelligentData[] calldata newDatas) external {
+        require(ownerOf(tokenId) == msg.sender, "Not owner");
+        require(newDatas.length > 0, "Empty data");
+
+        IntelligentData[] memory oldDatas = _iDatas[tokenId];
+        delete _iDatas[tokenId];
+        for (uint i = 0; i < newDatas.length; i++) {
+            _iDatas[tokenId].push(newDatas[i]);
+        }
+
+        emit Updated(tokenId, oldDatas, newDatas);
+    }
+
+    function intelligentDatasOf(uint256 tokenId) external view returns (IntelligentData[] memory) {
+        require(_ownerOf(tokenId) != address(0), "Token does not exist");
+        return _iDatas[tokenId];
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  ERC-7857: DELEGATE ACCESS
+    // ══════════════════════════════════════════════════════════════════
+
+    function delegateAccess(address assistant) external {
+        _accessAssistants[msg.sender] = assistant;
+        emit DelegateAccess(msg.sender, assistant);
+    }
+
+    function getDelegateAccess(address user) external view returns (address) {
+        return _accessAssistants[user];
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  ERC-7857: AUTHORIZE USAGE
+    // ══════════════════════════════════════════════════════════════════
+
+    function authorizeUsage(uint256 tokenId, address user) external {
+        require(ownerOf(tokenId) == msg.sender, "Not owner");
+        require(user != address(0), "Zero address");
+        require(!_authorized[tokenId][user], "Already authorized");
+
+        _authorized[tokenId][user] = true;
+        _authorizedUsers[tokenId].push(user);
+        emit Authorization(msg.sender, user, tokenId);
+    }
+
+    function revokeAuthorization(uint256 tokenId, address user) external {
+        require(ownerOf(tokenId) == msg.sender, "Not owner");
+        require(_authorized[tokenId][user], "Not authorized");
+
+        _authorized[tokenId][user] = false;
+        address[] storage users = _authorizedUsers[tokenId];
+        for (uint i = 0; i < users.length; i++) {
+            if (users[i] == user) {
+                users[i] = users[users.length - 1];
+                users.pop();
+                break;
+            }
+        }
+        emit AuthorizationRevoked(msg.sender, user, tokenId);
+    }
+
+    function authorizedUsersOf(uint256 tokenId) external view returns (address[] memory) {
+        return _authorizedUsers[tokenId];
+    }
+
+    function isAuthorized(uint256 tokenId, address user) external view returns (bool) {
+        return _authorized[tokenId][user];
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  FL: TASK MANAGEMENT
+    // ══════════════════════════════════════════════════════════════════
 
     function createTask(
         string calldata name,
@@ -121,7 +248,9 @@ contract FederatedLearningINFT is ERC721, Ownable {
         emit ParticipantRegistered(taskId, msg.sender);
     }
 
-    // ──────────────────────────── Training Round ────────────────────────────
+    // ══════════════════════════════════════════════════════════════════
+    //  FL: TRAINING ROUND
+    // ══════════════════════════════════════════════════════════════════
 
     function submitUpdate(
         uint256 taskId,
@@ -143,7 +272,6 @@ contract FederatedLearningINFT is ERC721, Ownable {
             timestamp: block.timestamp
         }));
         contributions[taskId][msg.sender] += dataSize;
-
         emit UpdateSubmitted(taskId, roundId, msg.sender, storageRoot);
     }
 
@@ -165,7 +293,6 @@ contract FederatedLearningINFT is ERC721, Ownable {
             "Not enough participants"
         );
 
-        // Record metrics
         metricsHistory[taskId].push(ModelMetrics({
             accuracy: accuracy,
             f1Score: f1Score,
@@ -175,14 +302,12 @@ contract FederatedLearningINFT is ERC721, Ownable {
             timestamp: block.timestamp
         }));
 
-        // Update global model
         task.globalModelRoot = newGlobalModelRoot;
         task.currentRound++;
 
         emit RoundAggregated(taskId, roundId, newGlobalModelRoot);
         emit MetricsRecorded(taskId, roundId, accuracy, f1Score);
 
-        // Check if task is done
         if (task.currentRound >= task.totalRounds) {
             task.completed = true;
             uint256 tokenId = _mintModelINFT(taskId);
@@ -190,7 +315,9 @@ contract FederatedLearningINFT is ERC721, Ownable {
         }
     }
 
-    // ──────────────────────────── INFT Minting ────────────────────────────
+    // ══════════════════════════════════════════════════════════════════
+    //  FL: INFT MINTING
+    // ══════════════════════════════════════════════════════════════════
 
     function _mintModelINFT(uint256 taskId) internal returns (uint256 tokenId) {
         tokenId = nextTokenId++;
@@ -198,18 +325,13 @@ contract FederatedLearningINFT is ERC721, Ownable {
         _mint(task.creator, tokenId);
         tokenTask[tokenId] = taskId;
 
-        // Store model reference as IntelligentData
         string memory desc = string(abi.encodePacked("0g://storage/", task.globalModelRoot));
         bytes32 hash = keccak256(abi.encodePacked(task.globalModelRoot));
-        tokenData[tokenId].push(IntelligentData({
-            dataDescription: desc,
-            dataHash: hash
-        }));
+        _iDatas[tokenId].push(IntelligentData({ dataDescription: desc, dataHash: hash }));
 
         emit ModelMinted(tokenId, taskId, task.creator);
     }
 
-    /// @notice Manually mint a model INFT for a completed task
     function mintModel(uint256 taskId) external returns (uint256 tokenId) {
         FLTask storage task = tasks[taskId];
         require(task.completed, "Task not completed");
@@ -220,15 +342,14 @@ contract FederatedLearningINFT is ERC721, Ownable {
 
         string memory desc = string(abi.encodePacked("0g://storage/", task.globalModelRoot));
         bytes32 hash = keccak256(abi.encodePacked(task.globalModelRoot));
-        tokenData[tokenId].push(IntelligentData({
-            dataDescription: desc,
-            dataHash: hash
-        }));
+        _iDatas[tokenId].push(IntelligentData({ dataDescription: desc, dataHash: hash }));
 
         emit ModelMinted(tokenId, taskId, msg.sender);
     }
 
-    // ──────────────────────────── View Functions ────────────────────────────
+    // ══════════════════════════════════════════════════════════════════
+    //  VIEW FUNCTIONS
+    // ══════════════════════════════════════════════════════════════════
 
     function getTask(uint256 taskId) external view returns (FLTask memory) {
         return tasks[taskId];
@@ -265,14 +386,26 @@ contract FederatedLearningINFT is ERC721, Ownable {
     function getTokenData(uint256 tokenId)
         external view returns (IntelligentData[] memory)
     {
-        return tokenData[tokenId];
+        return _iDatas[tokenId];
     }
 
     function totalMinted() external view returns (uint256) {
         return nextTokenId;
     }
 
-    // ──────────────────────────── Rewards ────────────────────────────
+    /// @notice Returns the 0G Storage URI as the token URI
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        _requireOwned(tokenId);
+        IntelligentData[] storage datas = _iDatas[tokenId];
+        if (datas.length > 0 && bytes(datas[0].dataDescription).length > 0) {
+            return datas[0].dataDescription;
+        }
+        return "";
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  REWARDS
+    // ══════════════════════════════════════════════════════════════════
 
     function claimReward(uint256 taskId) external {
         FLTask storage task = tasks[taskId];
@@ -280,7 +413,6 @@ contract FederatedLearningINFT is ERC721, Ownable {
         require(isParticipant[taskId][msg.sender], "Not a participant");
         require(contributions[taskId][msg.sender] > 0, "No contributions");
 
-        // Calculate proportional reward based on data contribution
         uint256 totalContributions = 0;
         address[] memory participants = taskParticipants[taskId];
         for (uint256 i = 0; i < participants.length; i++) {
@@ -288,10 +420,21 @@ contract FederatedLearningINFT is ERC721, Ownable {
         }
 
         uint256 reward = (task.rewardPool * contributions[taskId][msg.sender]) / totalContributions;
-        contributions[taskId][msg.sender] = 0; // prevent double claim
+        contributions[taskId][msg.sender] = 0;
 
         (bool sent, ) = msg.sender.call{value: reward}("");
         require(sent, "Reward transfer failed");
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  ERC-165
+    // ══════════════════════════════════════════════════════════════════
+
+    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
+        return
+            interfaceId == type(IERC7857).interfaceId ||
+            interfaceId == type(IERC7857Authorize).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 
     receive() external payable {}
