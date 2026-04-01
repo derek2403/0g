@@ -12,9 +12,6 @@ export default function Navbar() {
         <Link href="/tasks" className="text-base font-semibold text-black/70 transition hover:text-black drop-shadow-md">
           Tasks
         </Link>
-        <Link href="/models" className="text-base font-semibold text-black/70 transition hover:text-black drop-shadow-md">
-          Models
-        </Link>
         <Link href="/create" className="text-base font-semibold text-black/70 transition hover:text-black drop-shadow-md">
           Create
         </Link>
