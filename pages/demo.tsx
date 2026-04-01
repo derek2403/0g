@@ -8,6 +8,8 @@ export default function Demo() {
   useEffect(() => setMounted(true), []);
 
   const [isSettingUp, setIsSettingUp] = useState(false);
+  const [taskName, setTaskName] = useState("Animal Classifier");
+  const [classesInput, setClassesInput] = useState("cat, dog, bird, fish, horse, elephant, bear, deer, frog, snake");
   const [result, setResult] = useState<{
     taskId: number;
     currentRound: number;
@@ -17,7 +19,10 @@ export default function Demo() {
   const [error, setError] = useState("");
   const [progress, setProgress] = useState("");
 
+  const parsedClasses = classesInput.split(",").map((c) => c.trim().toLowerCase()).filter(Boolean);
+
   const handleSetup = async () => {
+    if (parsedClasses.length < 2) { setError("Need at least 2 classes"); return; }
     setIsSettingUp(true);
     setError("");
     setProgress("Creating task and simulating 1 round of training... (this takes ~1 min)");
@@ -26,6 +31,7 @@ export default function Demo() {
       const resp = await fetch("/api/fl/demo-setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: taskName, classes: parsedClasses }),
       });
       const data = await resp.json();
       if (!data.success) throw new Error(data.error);
