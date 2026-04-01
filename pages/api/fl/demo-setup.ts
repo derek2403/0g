@@ -52,12 +52,9 @@ export default async function handler(
   const indexer = new Indexer(ZG_INDEXER);
 
   try {
-    // Simulated metrics progression (improving over 4 rounds)
+    // Simulated metrics for 1 pre-trained round
     const metricsPerRound = [
-      { accuracy: 0.35, f1Score: 0.30, precision: 0.32, recall: 0.29, loss: 2.1 },
-      { accuracy: 0.52, f1Score: 0.48, precision: 0.50, recall: 0.47, loss: 1.6 },
-      { accuracy: 0.68, f1Score: 0.65, precision: 0.67, recall: 0.64, loss: 1.1 },
-      { accuracy: 0.79, f1Score: 0.76, precision: 0.78, recall: 0.75, loss: 0.7 },
+      { accuracy: 0.45, f1Score: 0.40, precision: 0.42, recall: 0.39, loss: 1.8 },
     ];
 
     // Step 1: Upload initial model to 0G Storage
@@ -74,12 +71,12 @@ export default async function handler(
 
     const initialRoot = await uploadModel(indexer, signer, initialModel);
 
-    // Step 2: Create task on-chain (5 rounds, min 1 participant for demo)
+    // Step 2: Create task on-chain (2 rounds, min 1 participant for demo)
     const createTx = await contract.createTask(
-      "Animal Classifier (Demo)",
-      "Pre-trained federated model at round 4/5. One more round to complete!",
+      "Animal Classifier",
+      "Pre-trained federated model at round 1/2. One more round to complete!",
       initialRoot,
-      BigInt(5),
+      BigInt(2),
       BigInt(1),
     );
     await createTx.wait();
@@ -91,9 +88,9 @@ export default async function handler(
     const regTx = await contract.register(BigInt(taskId));
     await regTx.wait();
 
-    // Step 4: Simulate 4 rounds of training
+    // Step 4: Simulate 1 round of training
     let currentModelRoot = initialRoot;
-    for (let round = 0; round < 4; round++) {
+    for (let round = 0; round < 1; round++) {
       const m = metricsPerRound[round];
       const { headWeights, headShapes } = generateHeadWeights(round + 1);
 
