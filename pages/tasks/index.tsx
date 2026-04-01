@@ -88,8 +88,9 @@ function TaskCard({ taskId }: { taskId: number }) {
     globalModelRoot: string;
   };
 
-  const latestMetrics = metrics && (metrics as unknown[]).length > 0
-    ? (metrics as { accuracy: bigint; f1Score: bigint }[])[(metrics as unknown[]).length - 1]
+  const metricsArr = metrics as unknown as { accuracy: bigint; f1Score: bigint }[] | undefined;
+  const latestMetrics = metricsArr && metricsArr.length > 0
+    ? metricsArr[metricsArr.length - 1]
     : null;
 
   return (

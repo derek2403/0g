@@ -103,18 +103,24 @@ export default function Home() {
         </div>
 
         {isConnected ? (
-          <div className="flex gap-4 justify-center">
+          <div className="flex gap-4 justify-center flex-wrap">
             <Link
-              href="/demo"
+              href="/create"
               className="bg-blue-600 hover:bg-blue-700 px-8 py-3 rounded-lg font-semibold transition"
             >
-              Launch Demo
+              Create FL Task
             </Link>
             <Link
               href="/tasks"
               className="bg-gray-800 hover:bg-gray-700 px-8 py-3 rounded-lg font-semibold transition border border-gray-700"
             >
               View Tasks
+            </Link>
+            <Link
+              href="/use"
+              className="bg-purple-600 hover:bg-purple-700 px-8 py-3 rounded-lg font-semibold transition"
+            >
+              Use Model
             </Link>
           </div>
         ) : (
