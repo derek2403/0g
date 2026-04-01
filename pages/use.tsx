@@ -1,4 +1,3 @@
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useReadContract } from "wagmi";
 import { FL_CONTRACT_ABI, FL_CONTRACT_ADDRESS } from "@/lib/fl-contract-abi";
 import {
@@ -12,7 +11,6 @@ import {
 } from "@/lib/model";
 import type { SerializedModel } from "@/lib/model";
 import { useState, useEffect, useRef, useCallback } from "react";
-import Link from "next/link";
 import type * as tf from "@tensorflow/tfjs";
 
 interface ChatMessage {
@@ -187,16 +185,7 @@ export default function UseModel() {
   if (!mounted) return null;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-gray-50">
-      {/* Header */}
-      <header className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 py-3">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-gray-400 hover:text-gray-900">&larr;</Link>
-          <h1 className="text-lg font-semibold text-gray-900">Use Model</h1>
-        </div>
-        <ConnectButton />
-      </header>
-
+    <div className="flex h-screen flex-col overflow-hidden bg-gray-50 pt-16">
       <div className="flex min-h-0 flex-1">
         {/* Sidebar — two columns: model list + details */}
         <div className="flex shrink-0 border-r border-gray-200 bg-white">

@@ -1,5 +1,3 @@
-import Navbar from "@/components/Navbar";
-
 export default function Home() {
   return (
     <div className="fixed inset-0 h-screen w-screen overflow-hidden">
@@ -12,8 +10,6 @@ export default function Home() {
       >
         <source src="/landing.mp4" type="video/mp4" />
       </video>
-
-      <Navbar />
     </div>
   );
 }
