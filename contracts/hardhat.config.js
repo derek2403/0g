@@ -17,4 +17,22 @@ module.exports = {
       accounts: [process.env.ZG_STORAGE_PRIVATE_KEY],
     },
   },
+  etherscan: {
+    apiKey: {
+      zgTestnet: "abc",
+    },
+    customChains: [
+      {
+        network: "zgTestnet",
+        chainId: 16602,
+        urls: {
+          apiURL: "https://chainscan-galileo.0g.ai/api",
+          browserURL: "https://chainscan-galileo.0g.ai",
+        },
+      },
+    ],
+  },
+  sourcify: {
+    enabled: true,
+  },
 };
