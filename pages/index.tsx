@@ -148,7 +148,7 @@ export default function Home() {
                   return (
                     <ul key={i} className="space-y-2 pl-1">
                       {block.items.map((item, j) => (
-                        <li key={j} className="flex gap-2 text-xs leading-relaxed text-gray-600">
+                        <li key={j} className="flex gap-2 text-sm leading-relaxed text-gray-600">
                           <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gray-400" />
                           {item}
                         </li>
