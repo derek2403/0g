@@ -105,6 +105,12 @@ export default function Home() {
         {isConnected ? (
           <div className="flex gap-4 justify-center flex-wrap">
             <Link
+              href="/demo"
+              className="bg-green-600 hover:bg-green-700 px-8 py-3 rounded-lg font-semibold transition"
+            >
+              Quick Demo
+            </Link>
+            <Link
               href="/create"
               className="bg-blue-600 hover:bg-blue-700 px-8 py-3 rounded-lg font-semibold transition"
             >
