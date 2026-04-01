@@ -1,10 +1,8 @@
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { FL_CONTRACT_ABI, FL_CONTRACT_ADDRESS } from "@/lib/fl-contract-abi";
 import { ANIMAL_CLASSES } from "@/lib/model";
 import type { SerializedModel } from "@/lib/model";
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/router";
 
 export default function CreateTask() {
@@ -88,15 +86,7 @@ export default function CreateTask() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="border-b border-gray-200 bg-white px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-gray-400 hover:text-gray-900">&larr;</Link>
-          <h1 className="text-xl font-bold text-gray-900">Create FL Task</h1>
-        </div>
-        <ConnectButton />
-      </header>
-
+    <div className="min-h-screen bg-gray-50 pt-20">
       <main className="max-w-xl mx-auto px-6 py-12">
         {!isConnected ? (
           <div className="text-center py-20 text-gray-500">Connect your wallet to create a task</div>

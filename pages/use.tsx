@@ -1,4 +1,3 @@
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useReadContract } from "wagmi";
 import { FL_CONTRACT_ABI, FL_CONTRACT_ADDRESS } from "@/lib/fl-contract-abi";
 import {
@@ -12,7 +11,6 @@ import {
 } from "@/lib/model";
 import type { SerializedModel } from "@/lib/model";
 import { useState, useEffect, useRef, useCallback } from "react";
-import Link from "next/link";
 import type * as tf from "@tensorflow/tfjs";
 
 interface ChatMessage {
@@ -187,21 +185,11 @@ export default function UseModel() {
   if (!mounted) return null;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-gray-50">
-      {/* Header */}
-      <header className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 py-3">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-gray-400 hover:text-gray-900">&larr;</Link>
-          <h1 className="text-lg font-semibold text-gray-900">Use Model</h1>
-        </div>
-        <ConnectButton />
-      </header>
-
+    <div className="flex h-screen flex-col overflow-hidden bg-gray-50 pt-16">
       <div className="flex min-h-0 flex-1">
-        {/* Sidebar — two columns: model list + details */}
-        <div className="flex shrink-0 border-r border-gray-200 bg-white">
-          {/* Model list */}
-          <div className="flex w-56 flex-col border-r border-gray-100 p-3">
+        {/* Sidebar — single column */}
+        <div className="flex w-72 shrink-0 flex-col border-r border-gray-200 bg-white">
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
             <h2 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Models</h2>
             {taskCount === 0 ? (
               <div className="text-xs text-gray-400">No models available</div>
@@ -217,24 +205,21 @@ export default function UseModel() {
                 ))}
               </div>
             )}
-          </div>
 
-          {/* Details panel */}
-          {selectedTaskId !== null && (() => {
-            const t = selectedTask as {
-              name: string; globalModelRoot: string; creator: string;
-              currentRound: bigint; totalRounds: bigint; completed: boolean;
-            } | undefined;
-            const tokenDataArr = (tokenData || []) as unknown as { dataDescription: string; dataHash: string }[];
-            const metricsArr = (metricsHistory || []) as unknown as {
-              accuracy: bigint; f1Score: bigint; precision_: bigint; recall: bigint; loss: bigint;
-            }[];
-            const lastM = metricsArr.length > 0 ? metricsArr[metricsArr.length - 1] : null;
+            {/* Details — below model list */}
+            {selectedTaskId !== null && (() => {
+              const t = selectedTask as {
+                name: string; globalModelRoot: string; creator: string;
+                currentRound: bigint; totalRounds: bigint; completed: boolean;
+              } | undefined;
+              const tokenDataArr = (tokenData || []) as unknown as { dataDescription: string; dataHash: string }[];
+              const metricsArr = (metricsHistory || []) as unknown as {
+                accuracy: bigint; f1Score: bigint; precision_: bigint; recall: bigint; loss: bigint;
+              }[];
+              const lastM = metricsArr.length > 0 ? metricsArr[metricsArr.length - 1] : null;
 
-            return (
-              <div className="flex w-52 flex-col justify-between p-3">
-                <div className="space-y-3">
-                  {/* Stats */}
+              return (
+                <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
                   <div className="grid grid-cols-2 gap-1.5">
                     {serializedModel && (
                       <>
@@ -262,7 +247,6 @@ export default function UseModel() {
                     )}
                   </div>
 
-                  {/* Training progress */}
                   {metricsArr.length > 0 && (
                     <div>
                       <div className="mb-1.5 text-[9px] font-semibold uppercase tracking-wider text-gray-400">Progress</div>
@@ -280,7 +264,6 @@ export default function UseModel() {
                     </div>
                   )}
 
-                  {/* On-chain */}
                   {t && (
                     <div className="space-y-1 text-[10px]">
                       <div className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">On-Chain</div>
@@ -312,27 +295,29 @@ export default function UseModel() {
                     </div>
                   )}
                 </div>
+              );
+            })()}
+          </div>
 
-                {/* Download — at bottom */}
-                {serializedModel && serializedModel.headWeights?.length > 0 && (
-                  <div className="mt-3 flex gap-1.5">
-                    <button
-                      onClick={() => downloadAsJSON(serializedModel, `model-task${selectedTaskId}.json`)}
-                      className="flex-1 rounded-md border border-gray-200 py-1.5 text-center text-[10px] font-medium text-gray-600 transition hover:bg-gray-50"
-                    >
-                      .json
-                    </button>
-                    <button
-                      onClick={() => downloadAsPKL(serializedModel, `model-task${selectedTaskId}.pkl`)}
-                      className="flex-1 rounded-md border border-gray-200 py-1.5 text-center text-[10px] font-medium text-gray-600 transition hover:bg-gray-50"
-                    >
-                      .pkl
-                    </button>
-                  </div>
-                )}
+          {/* Download — pinned at bottom */}
+          {serializedModel && serializedModel.headWeights?.length > 0 && (
+            <div className="shrink-0 border-t border-gray-200 p-3">
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => downloadAsJSON(serializedModel, `model-task${selectedTaskId}.json`)}
+                  className="flex-1 rounded-md border border-gray-200 py-1.5 text-center text-[10px] font-medium text-gray-600 transition hover:bg-gray-50"
+                >
+                  .json
+                </button>
+                <button
+                  onClick={() => downloadAsPKL(serializedModel, `model-task${selectedTaskId}.pkl`)}
+                  className="flex-1 rounded-md border border-gray-200 py-1.5 text-center text-[10px] font-medium text-gray-600 transition hover:bg-gray-50"
+                >
+                  .pkl
+                </button>
               </div>
-            );
-          })()}
+            </div>
+          )}
         </div>
 
         {/* Main chat area */}

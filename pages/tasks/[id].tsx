@@ -1,4 +1,3 @@
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import {
   useAccount,
   useReadContract,
@@ -170,15 +169,7 @@ export default function TaskDetail() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
-        <div className="flex items-center gap-4">
-          <Link href="/tasks" className="text-gray-400 hover:text-gray-900">&larr;</Link>
-          <h1 className="text-xl font-bold text-gray-900">Task #{taskId}</h1>
-        </div>
-        <ConnectButton />
-      </header>
-
+    <div className="min-h-screen bg-gray-50 pt-20">
       <main className="mx-auto max-w-5xl px-6 py-8">
         {!isConnected ? (
           <div className="py-20 text-center text-gray-500">Connect wallet</div>

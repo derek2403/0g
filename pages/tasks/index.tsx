@@ -1,4 +1,3 @@
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useReadContract } from "wagmi";
 import {
   FL_CONTRACT_ABI,
@@ -23,15 +22,7 @@ export default function Tasks() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-gray-400 hover:text-gray-900">&larr;</Link>
-          <h1 className="text-xl font-bold text-gray-900">FL Tasks</h1>
-        </div>
-        <ConnectButton />
-      </header>
-
+    <div className="min-h-screen bg-gray-50 pt-20">
       <main className="mx-auto max-w-6xl px-6 py-10">
         <h2 className="text-3xl font-bold text-gray-900">Tasks</h2>
         <p className="mt-2 text-gray-600">
