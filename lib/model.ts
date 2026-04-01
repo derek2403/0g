@@ -2,19 +2,12 @@ import * as tf from "@tensorflow/tfjs";
 import * as mobilenetModule from "@tensorflow-models/mobilenet";
 
 export const IMAGE_SIZE = 224; // MobileNet input size
-export const ANIMAL_CLASSES = [
-  "cat",
-  "dog",
-  "bird",
-  "fish",
-  "horse",
-  "elephant",
-  "bear",
-  "deer",
-  "frog",
-  "snake",
-] as const;
-export const NUM_CLASSES = ANIMAL_CLASSES.length;
+
+// Default classes (used as fallback / demo preset)
+export const DEFAULT_CLASSES = [
+  "cat", "dog", "bird", "fish", "horse",
+  "elephant", "bear", "deer", "frog", "snake",
+];
 
 export interface ModelMetrics {
   accuracy: number;
@@ -49,12 +42,12 @@ async function getMobilenet() {
   return mobilenet;
 }
 
-export async function createModel(): Promise<tf.LayersModel> {
+export async function createModel(numClasses: number = DEFAULT_CLASSES.length): Promise<tf.LayersModel> {
   const input = tf.input({ shape: [FEATURE_DIM] });
   let x = tf.layers.dense({ units: 128, activation: "relu" }).apply(input) as tf.SymbolicTensor;
   x = tf.layers.dropout({ rate: 0.3 }).apply(x) as tf.SymbolicTensor;
   const output = tf.layers
-    .dense({ units: NUM_CLASSES, activation: "softmax" })
+    .dense({ units: numClasses, activation: "softmax" })
     .apply(x) as tf.SymbolicTensor;
 
   const head = tf.model({ inputs: input, outputs: output });
@@ -87,10 +80,11 @@ export async function trainOnFeatures(
   head: tf.LayersModel,
   features: tf.Tensor2D,
   labels: number[],
+  numClasses: number,
   epochs: number = 10,
   onEpochEnd?: (epoch: number, logs: tf.Logs | undefined) => void
 ): Promise<tf.History> {
-  const oneHot = tf.oneHot(tf.tensor1d(labels, "int32"), NUM_CLASSES);
+  const oneHot = tf.oneHot(tf.tensor1d(labels, "int32"), numClasses);
   const history = await head.fit(features, oneHot, {
     epochs,
     batchSize: 16,
@@ -105,13 +99,14 @@ export async function trainOnFeatures(
 // ─── Predict on a single image ───
 export async function predict(
   head: tf.LayersModel,
-  image: HTMLImageElement | ImageData
+  image: HTMLImageElement | ImageData,
+  classes: string[] = DEFAULT_CLASSES
 ): Promise<{ class: string; confidence: number; all: { class: string; confidence: number }[] }> {
   const features = await extractFeatures([image] as HTMLImageElement[]);
   const probs = (head.predict(features) as tf.Tensor2D).dataSync();
   features.dispose();
 
-  const all = ANIMAL_CLASSES.map((cls, i) => ({
+  const all = classes.map((cls, i) => ({
     class: cls,
     confidence: probs[i],
   })).sort((a, b) => b.confidence - a.confidence);
@@ -123,9 +118,10 @@ export async function predict(
 export async function evaluateModel(
   head: tf.LayersModel,
   features: tf.Tensor2D,
-  labels: number[]
+  labels: number[],
+  numClasses: number
 ): Promise<ModelMetrics> {
-  const oneHot = tf.oneHot(tf.tensor1d(labels, "int32"), NUM_CLASSES);
+  const oneHot = tf.oneHot(tf.tensor1d(labels, "int32"), numClasses);
   const evalResult = head.evaluate(features, oneHot) as tf.Scalar[];
   const loss = (await evalResult[0].data())[0];
   const accuracy = (await evalResult[1].data())[0];
@@ -136,9 +132,9 @@ export async function evaluateModel(
   const preds = await predictions.data();
   predictions.dispose();
 
-  const tp = new Array(NUM_CLASSES).fill(0);
-  const fp = new Array(NUM_CLASSES).fill(0);
-  const fn = new Array(NUM_CLASSES).fill(0);
+  const tp = new Array(numClasses).fill(0);
+  const fp = new Array(numClasses).fill(0);
+  const fn = new Array(numClasses).fill(0);
 
   for (let i = 0; i < labels.length; i++) {
     if (preds[i] === labels[i]) {
@@ -151,7 +147,7 @@ export async function evaluateModel(
 
   let precSum = 0, recSum = 0, f1Sum = 0;
   let classesWithData = 0;
-  for (let c = 0; c < NUM_CLASSES; c++) {
+  for (let c = 0; c < numClasses; c++) {
     if (tp[c] + fp[c] + fn[c] === 0) continue;
     classesWithData++;
     const p = tp[c] + fp[c] > 0 ? tp[c] / (tp[c] + fp[c]) : 0;
@@ -176,7 +172,8 @@ export async function evaluateModel(
 export async function serializeHead(
   head: tf.LayersModel,
   round: number,
-  metrics: ModelMetrics
+  metrics: ModelMetrics,
+  classes: string[] = DEFAULT_CLASSES
 ): Promise<SerializedModel> {
   const headWeights: number[][] = [];
   const headShapes: number[][] = [];
@@ -186,8 +183,8 @@ export async function serializeHead(
   }
   return {
     version: "1.0.0",
-    architecture: "mobilenet-v2-head-128-10",
-    classes: [...ANIMAL_CLASSES],
+    architecture: `mobilenet-v2-head-128-${classes.length}`,
+    classes: [...classes],
     baseWeights: [], // base is frozen + loaded from CDN, no need to store
     headWeights,
     headShapes,
@@ -200,7 +197,7 @@ export async function serializeHead(
 export async function deserializeHead(
   data: SerializedModel
 ): Promise<tf.LayersModel> {
-  const head = await createModel();
+  const head = await createModel(data.classes.length);
   const tensors = data.headWeights.map((w, i) =>
     tf.tensor(w, data.headShapes[i])
   );

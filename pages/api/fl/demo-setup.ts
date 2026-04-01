@@ -52,6 +52,15 @@ export default async function handler(
   const indexer = new Indexer(ZG_INDEXER);
 
   try {
+    const {
+      name = "Animal Classifier",
+      description = "Pre-trained federated model at round 1/2. One more round to complete!",
+      classes = ["cat","dog","bird","fish","horse","elephant","bear","deer","frog","snake"],
+      totalRounds = 2,
+    } = req.body || {};
+
+    const classesArr = Array.isArray(classes) ? classes : (classes as string).split(",").map((c: string) => c.trim()).filter(Boolean);
+
     // Simulated metrics for 1 pre-trained round
     const metricsPerRound = [
       { accuracy: 0.45, f1Score: 0.40, precision: 0.42, recall: 0.39, loss: 1.8 },
@@ -60,8 +69,8 @@ export default async function handler(
     // Step 1: Upload initial model to 0G Storage
     const initialModel = {
       version: "1.0.0",
-      architecture: "mobilenet-v2-head-128-10",
-      classes: ["cat","dog","bird","fish","horse","elephant","bear","deer","frog","snake"],
+      architecture: `mobilenet-v2-head-128-${classesArr.length}`,
+      classes: classesArr,
       baseWeights: [],
       headWeights: [],
       headShapes: [],
@@ -71,12 +80,12 @@ export default async function handler(
 
     const initialRoot = await uploadModel(indexer, signer, initialModel);
 
-    // Step 2: Create task on-chain (2 rounds, min 1 participant for demo)
+    // Step 2: Create task on-chain
     const createTx = await contract.createTask(
-      "Animal Classifier",
-      "Pre-trained federated model at round 1/2. One more round to complete!",
+      name,
+      description,
       initialRoot,
-      BigInt(2),
+      BigInt(totalRounds),
       BigInt(1),
     );
     await createTx.wait();

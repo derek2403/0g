@@ -1,6 +1,6 @@
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { FL_CONTRACT_ABI, FL_CONTRACT_ADDRESS } from "@/lib/fl-contract-abi";
-import { ANIMAL_CLASSES } from "@/lib/model";
+import { DEFAULT_CLASSES } from "@/lib/model";
 import type { SerializedModel } from "@/lib/model";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
@@ -11,12 +11,11 @@ export default function CreateTask() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const [name, setName] = useState("Animal Classifier");
-  const [description, setDescription] = useState(
-    "Federated learning for 10-class animal image classification using MobileNet transfer learning"
-  );
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [totalRounds, setTotalRounds] = useState(3);
-  const [minParticipants, setMinParticipants] = useState(2);
+  const [minParticipants, setMinParticipants] = useState(1);
+  const [classesInput, setClassesInput] = useState(DEFAULT_CLASSES.join(", "));
   const [status, setStatus] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [modelRootHash, setModelRootHash] = useState("");
@@ -24,7 +23,11 @@ export default function CreateTask() {
   const { writeContract, data: txHash } = useWriteContract();
   const { isSuccess: txConfirmed } = useWaitForTransactionReceipt({ hash: txHash });
 
-  // After tx confirms, redirect to tasks
+  const parsedClasses = classesInput
+    .split(",")
+    .map((c) => c.trim().toLowerCase())
+    .filter((c) => c.length > 0);
+
   useEffect(() => {
     if (txConfirmed) {
       setStatus("Task created on-chain! Redirecting...");
@@ -33,16 +36,19 @@ export default function CreateTask() {
   }, [txConfirmed, router]);
 
   const handleCreate = async () => {
+    if (parsedClasses.length < 2) {
+      setStatus("Error: Need at least 2 classes");
+      return;
+    }
     setIsCreating(true);
     try {
-      // Step 1: Create initial model weights (random head)
-      setStatus("Creating initial model weights...");
+      setStatus("Creating initial model config...");
       const initialModel: SerializedModel = {
         version: "1.0.0",
-        architecture: "mobilenet-v2-head-128-10",
-        classes: [...ANIMAL_CLASSES],
+        architecture: `mobilenet-v2-head-128-${parsedClasses.length}`,
+        classes: parsedClasses,
         baseWeights: [],
-        headWeights: [], // will be initialized by each participant's TF.js
+        headWeights: [],
         headShapes: [],
         round: 0,
         metrics: {
@@ -51,7 +57,6 @@ export default function CreateTask() {
         },
       };
 
-      // Step 2: Upload to 0G Storage
       setStatus("Uploading initial model to 0G Storage...");
       const uploadResp = await fetch("/api/storage/upload", {
         method: "POST",
@@ -64,7 +69,6 @@ export default function CreateTask() {
       setModelRootHash(uploadData.rootHash);
       setStatus(`Model uploaded (${uploadData.rootHash.slice(0, 16)}...). Creating task on-chain...`);
 
-      // Step 3: Create on-chain task
       writeContract({
         address: FL_CONTRACT_ADDRESS as `0x${string}`,
         abi: FL_CONTRACT_ABI,
@@ -101,6 +105,7 @@ export default function CreateTask() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Animal Classifier, Car Brand Detector"
                   className="w-full border border-gray-200 rounded-lg px-4 py-2 text-gray-900 bg-white focus:outline-none focus:border-blue-500"
                 />
               </div>
@@ -110,9 +115,29 @@ export default function CreateTask() {
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Describe what this model will classify..."
                   rows={3}
                   className="w-full border border-gray-200 rounded-lg px-4 py-2 text-gray-900 bg-white focus:outline-none focus:border-blue-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-500 mb-1">Classes (comma-separated)</label>
+                <textarea
+                  value={classesInput}
+                  onChange={(e) => setClassesInput(e.target.value)}
+                  placeholder="cat, dog, bird, fish"
+                  rows={2}
+                  className="w-full border border-gray-200 rounded-lg px-4 py-2 text-gray-900 bg-white focus:outline-none focus:border-blue-500 font-mono text-sm"
+                />
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {parsedClasses.map((cls) => (
+                    <span key={cls} className="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">
+                      {cls}
+                    </span>
+                  ))}
+                  <span className="text-xs text-gray-400">{parsedClasses.length} classes</span>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -144,13 +169,13 @@ export default function CreateTask() {
               <div className="rounded-lg bg-gray-100 p-4 text-sm text-gray-600">
                 <div className="font-medium text-gray-900 mb-2">Model Architecture</div>
                 <div>Base: MobileNet V2 (frozen, loaded from CDN)</div>
-                <div>Head: Dense(1280 &rarr; 128, ReLU) &rarr; Dropout(0.3) &rarr; Dense(128 &rarr; 10, Softmax)</div>
-                <div>Classes: {ANIMAL_CLASSES.join(", ")}</div>
+                <div>Head: Dense(1280 &rarr; 128, ReLU) &rarr; Dropout(0.3) &rarr; Dense(128 &rarr; {parsedClasses.length}, Softmax)</div>
+                <div>Classes: {parsedClasses.join(", ") || "none"}</div>
               </div>
 
               <button
                 onClick={handleCreate}
-                disabled={isCreating || !name}
+                disabled={isCreating || !name || parsedClasses.length < 2}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition"
               >
                 {isCreating ? "Creating..." : "Create Task & Upload Initial Model"}

@@ -5,7 +5,7 @@ export default function Navbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 grid grid-cols-3 items-center px-10 py-5">
       <Link href="/" className="text-2xl font-extrabold tracking-tight text-black drop-shadow-lg">
-        PrivTrain
+        Zero Training
       </Link>
 
       <div className="flex items-center justify-center gap-10">

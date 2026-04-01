@@ -103,7 +103,7 @@ export default function Home() {
 
       {/* Instructions card */}
       <div className="absolute bottom-2 left-16 z-10">
-        <div className="flex h-[28rem] w-[28rem] flex-col rounded-2xl border border-gray-200 bg-white/95 shadow-xl backdrop-blur-sm">
+        <div className="flex h-[60vh] w-[35vw] flex-col rounded-2xl border border-gray-200 bg-white/95 shadow-xl backdrop-blur-sm">
           {/* Header */}
           <div className="shrink-0 border-b border-gray-100 px-5 pt-5 pb-3">
             <div className="text-xs font-semibold uppercase tracking-wider text-gray-400">
