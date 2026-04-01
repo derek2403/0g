@@ -18,7 +18,7 @@ import type * as tf from "@tensorflow/tfjs";
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
-  image?: string; // data URL for user uploads
+  image?: string;
   predictions?: { class: string; confidence: number }[];
 }
 
@@ -27,14 +27,12 @@ export default function UseModel() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  // Model state
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [model, setModel] = useState<tf.LayersModel | null>(null);
   const [serializedModel, setSerializedModel] = useState<SerializedModel | null>(null);
   const [isLoadingModel, setIsLoadingModel] = useState(false);
   const [modelStatus, setModelStatus] = useState("");
 
-  // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isClassifying, setIsClassifying] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,28 +46,17 @@ export default function UseModel() {
 
   const taskCount = Number(nextTaskId || 0);
 
-  // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Load a model INFT
   const loadModel = useCallback(async (taskId: number) => {
     setIsLoadingModel(true);
     setModelStatus("Loading task from chain...");
     setMessages([]);
 
     try {
-      // Fetch task data from API to get globalModelRoot
-      const taskResp = await fetch("/api/storage/download", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rootHash: "" }), // we'll get the root from chain
-      });
-      // Actually, we need to read the task first. Let's use the contract read from the component.
       setModelStatus("Downloading model from 0G Storage...");
-
-      // We'll trigger this after we have the task data
       setSelectedTaskId(taskId);
     } catch (err) {
       setModelStatus(`Error: ${err instanceof Error ? err.message : "Unknown"}`);
@@ -77,7 +64,6 @@ export default function UseModel() {
     }
   }, []);
 
-  // Task data for selected model
   const { data: selectedTask } = useReadContract({
     address: FL_CONTRACT_ADDRESS as `0x${string}`,
     abi: FL_CONTRACT_ABI,
@@ -85,7 +71,6 @@ export default function UseModel() {
     args: selectedTaskId !== null ? [BigInt(selectedTaskId)] : undefined,
   });
 
-  // When task data loads, download the model
   useEffect(() => {
     if (!selectedTask || !isLoadingModel) return;
     const t = selectedTask as { globalModelRoot: string; name: string; completed: boolean };
@@ -136,7 +121,6 @@ export default function UseModel() {
     })();
   }, [selectedTask, isLoadingModel]);
 
-  // Classify an uploaded image
   const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !model) return;
@@ -144,10 +128,9 @@ export default function UseModel() {
     setIsClassifying(true);
     const preview = URL.createObjectURL(file);
 
-    // Add user message
     setMessages((prev) => [
       ...prev,
-      { role: "user", content: `Classify this image:`, image: preview },
+      { role: "user", content: "Classify this image:", image: preview },
     ]);
 
     try {
@@ -182,31 +165,31 @@ export default function UseModel() {
     }
 
     setIsClassifying(false);
-    // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, [model]);
 
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex flex-col">
-      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between shrink-0">
+    <div className="flex min-h-screen flex-col bg-gray-50">
+      {/* Header */}
+      <header className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
         <div className="flex items-center gap-4">
-          <Link href="/" className="text-gray-400 hover:text-white">&larr;</Link>
-          <h1 className="text-xl font-bold">Use Model</h1>
+          <Link href="/" className="text-gray-400 hover:text-gray-900">&larr;</Link>
+          <h1 className="text-xl font-bold text-gray-900">Use Model</h1>
         </div>
         <ConnectButton />
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar: Model selection */}
-        <div className="w-72 border-r border-gray-800 p-4 overflow-y-auto shrink-0">
-          <h2 className="text-sm font-semibold text-gray-400 mb-3">Available Models</h2>
+        {/* Sidebar */}
+        <div className="w-80 shrink-0 overflow-y-auto border-r border-gray-200 bg-white p-5">
+          <h2 className="mb-4 text-sm font-semibold text-gray-500">Available Models</h2>
 
           {taskCount === 0 ? (
-            <div className="text-gray-500 text-sm">No models available</div>
+            <div className="text-sm text-gray-400">No models available</div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {Array.from({ length: taskCount }, (_, i) => (
                 <ModelListItem
                   key={i}
@@ -218,23 +201,23 @@ export default function UseModel() {
             </div>
           )}
 
-          {/* Download buttons */}
+          {/* Download */}
           {serializedModel && serializedModel.headWeights?.length > 0 && (
-            <div className="mt-6 pt-4 border-t border-gray-800">
-              <h3 className="text-sm font-semibold text-gray-400 mb-3">Download Model</h3>
+            <div className="mt-6 border-t border-gray-200 pt-4">
+              <h3 className="mb-3 text-sm font-semibold text-gray-500">Download Model</h3>
               <div className="space-y-2">
                 <button
                   onClick={() => downloadAsJSON(serializedModel, `model-task${selectedTaskId}.json`)}
-                  className="w-full bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-lg text-sm transition text-left"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm transition hover:bg-gray-50"
                 >
-                  Download .json
+                  <span className="font-medium text-gray-900">Download .json</span>
                   <span className="block text-xs text-gray-500">TF.js compatible</span>
                 </button>
                 <button
                   onClick={() => downloadAsPKL(serializedModel, `model-task${selectedTaskId}.pkl`)}
-                  className="w-full bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-lg text-sm transition text-left"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm transition hover:bg-gray-50"
                 >
-                  Download .pkl
+                  <span className="font-medium text-gray-900">Download .pkl</span>
                   <span className="block text-xs text-gray-500">Python/NumPy compatible</span>
                 </button>
               </div>
@@ -243,12 +226,12 @@ export default function UseModel() {
 
           {/* Model info */}
           {serializedModel && (
-            <div className="mt-4 pt-4 border-t border-gray-800 text-xs text-gray-500 space-y-1">
+            <div className="mt-4 border-t border-gray-200 pt-4 text-xs text-gray-500 space-y-1">
               <div>Architecture: {serializedModel.architecture}</div>
               <div>Round: {serializedModel.round}</div>
               <div>Classes: {serializedModel.classes.length}</div>
               {serializedModel.metrics.accuracy > 0 && (
-                <div className="text-green-400">
+                <div className="text-green-600 font-medium">
                   Accuracy: {(serializedModel.metrics.accuracy * 100).toFixed(1)}%
                 </div>
               )}
@@ -256,21 +239,25 @@ export default function UseModel() {
           )}
         </div>
 
-        {/* Main: Chat interface */}
-        <div className="flex-1 flex flex-col">
+        {/* Chat area */}
+        <div className="flex flex-1 flex-col">
           {selectedTaskId === null ? (
-            <div className="flex-1 flex items-center justify-center text-gray-500">
+            <div className="flex flex-1 items-center justify-center">
               <div className="text-center">
-                <div className="text-4xl mb-4">&#x1f9e0;</div>
-                <div className="text-lg">Select a model to start classifying</div>
-                <div className="text-sm mt-2">Choose from the sidebar</div>
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+                  <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div className="text-lg font-medium text-gray-900">Select a model to start</div>
+                <div className="mt-1 text-sm text-gray-500">Choose a model from the sidebar to classify images</div>
               </div>
             </div>
           ) : isLoadingModel ? (
-            <div className="flex-1 flex items-center justify-center text-gray-500">
+            <div className="flex flex-1 items-center justify-center">
               <div className="text-center">
-                <div className="animate-spin text-4xl mb-4">&#x2699;</div>
-                <div>{modelStatus}</div>
+                <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-blue-600" />
+                <div className="text-sm text-gray-500">{modelStatus}</div>
               </div>
             </div>
           ) : (
@@ -283,33 +270,33 @@ export default function UseModel() {
                     className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`max-w-lg rounded-xl px-4 py-3 ${
+                      className={`max-w-lg rounded-2xl px-4 py-3 ${
                         msg.role === "user"
-                          ? "bg-blue-600"
-                          : "bg-gray-800 border border-gray-700"
+                          ? "bg-blue-600 text-white"
+                          : "border border-gray-200 bg-white text-gray-800 shadow-sm"
                       }`}
                     >
                       {msg.image && (
                         <img
                           src={msg.image}
                           alt="Uploaded"
-                          className="w-48 h-48 object-cover rounded-lg mb-2"
+                          className="mb-2 h-48 w-48 rounded-lg object-cover"
                         />
                       )}
-                      <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
+                      <div className="whitespace-pre-wrap text-sm">{msg.content}</div>
                       {msg.predictions && (
-                        <div className="mt-3 space-y-1">
+                        <div className="mt-3 space-y-2">
                           {msg.predictions.map((p, j) => (
                             <div key={j} className="flex items-center gap-2">
-                              <div className="flex-1 bg-gray-700 rounded-full h-2 overflow-hidden">
+                              <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
                                 <div
                                   className={`h-full rounded-full ${
-                                    j === 0 ? "bg-green-500" : "bg-gray-500"
+                                    j === 0 ? "bg-green-500" : "bg-gray-300"
                                   }`}
                                   style={{ width: `${p.confidence * 100}%` }}
                                 />
                               </div>
-                              <span className="text-xs text-gray-400 w-20 text-right">
+                              <span className="w-24 text-right text-xs text-gray-500">
                                 {p.class} {(p.confidence * 100).toFixed(1)}%
                               </span>
                             </div>
@@ -321,17 +308,20 @@ export default function UseModel() {
                 ))}
                 {isClassifying && (
                   <div className="flex justify-start">
-                    <div className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-sm text-gray-400">
-                      Classifying...
+                    <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-400 shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 animate-pulse rounded-full bg-gray-400" />
+                        Classifying...
+                      </div>
                     </div>
                   </div>
                 )}
                 <div ref={chatEndRef} />
               </div>
 
-              {/* Input bar */}
-              <div className="border-t border-gray-800 p-4">
-                <div className="max-w-3xl mx-auto flex items-center gap-3">
+              {/* Upload bar */}
+              <div className="border-t border-gray-200 bg-white p-4">
+                <div className="mx-auto flex max-w-3xl items-center gap-3">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -342,8 +332,11 @@ export default function UseModel() {
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={!model || isClassifying}
-                    className="flex-1 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-900 disabled:text-gray-600 border border-gray-700 px-6 py-3 rounded-xl transition text-sm font-medium"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:bg-gray-50 disabled:text-gray-400"
                   >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 16v-8m0 0l-3 3m3-3l3 3M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
                     {!model
                       ? "Load a model first"
                       : isClassifying
@@ -352,7 +345,7 @@ export default function UseModel() {
                   </button>
                 </div>
                 {modelStatus && (
-                  <div className="text-center text-sm text-gray-500 mt-2">{modelStatus}</div>
+                  <div className="mt-2 text-center text-sm text-gray-500">{modelStatus}</div>
                 )}
               </div>
             </>
@@ -363,7 +356,6 @@ export default function UseModel() {
   );
 }
 
-// Model list item component
 function ModelListItem({
   taskId,
   isSelected,
@@ -392,16 +384,25 @@ function ModelListItem({
   return (
     <button
       onClick={onSelect}
-      className={`w-full text-left p-3 rounded-lg transition text-sm ${
+      className={`w-full rounded-xl border p-4 text-left transition ${
         isSelected
-          ? "bg-blue-600/20 border border-blue-500"
-          : "bg-gray-800/50 border border-gray-800 hover:border-gray-600"
+          ? "border-blue-500 bg-blue-50 shadow-sm"
+          : "border-gray-200 bg-white shadow-sm hover:shadow-md"
       }`}
     >
-      <div className="font-medium">{t.name}</div>
-      <div className="text-xs text-gray-400 mt-1">
-        Round {t.currentRound.toString()}/{t.totalRounds.toString()}
-        {t.completed && <span className="text-green-400 ml-2">Complete</span>}
+      <div className="flex items-center gap-3">
+        <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold ${
+          isSelected ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-500"
+        }`}>
+          {taskId + 1}
+        </div>
+        <div>
+          <div className="font-medium text-gray-900">{t.name}</div>
+          <div className="mt-0.5 text-xs text-gray-500">
+            Round {t.currentRound.toString()}/{t.totalRounds.toString()}
+            {t.completed && <span className="ml-2 font-medium text-green-600">Complete</span>}
+          </div>
+        </div>
       </div>
     </button>
   );
