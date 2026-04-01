@@ -284,8 +284,8 @@ function InstructionsModal({
           Below are example code snippets for using this model. The model
           endpoint URL is:
         </p>
-        <div className="mt-3 flex items-center gap-2 rounded-lg bg-blue-50 px-4 py-3">
-          <code className="flex-1 break-all text-sm text-gray-800">
+        <div className="mt-3 flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-3">
+          <code className="flex-1 break-all text-sm text-gray-700">
             {model.endpointUrl}
           </code>
           <button
@@ -323,8 +323,27 @@ function InstructionsModal({
             ))}
           </div>
 
-          <div className="mt-4 overflow-x-auto rounded-lg bg-gray-900 p-4">
-            <pre className="text-sm leading-relaxed text-gray-100">
+          <div className="relative mt-4 overflow-x-auto rounded-lg bg-gray-100 p-4 pr-12">
+            <button
+              className="absolute right-3 top-3 cursor-pointer text-gray-400 transition-colors hover:text-gray-600"
+              title="Copy code"
+              onClick={() =>
+                navigator.clipboard.writeText(
+                  CODE_EXAMPLES[activeTab](model.endpointUrl)
+                )
+              }
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+              </svg>
+            </button>
+            <pre className="text-sm leading-relaxed text-gray-700">
               <code>{CODE_EXAMPLES[activeTab](model.endpointUrl)}</code>
             </pre>
           </div>
@@ -334,34 +353,24 @@ function InstructionsModal({
         <h3 className="mt-8 text-xl font-bold text-gray-900">
           Model Information
         </h3>
-        <dl className="mt-4 space-y-3 text-sm">
-          <div className="flex">
-            <dt className="w-36 font-medium text-gray-500">Model URL:</dt>
-            <dd>
-              <a
-                href={model.modelUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
-              >
-                {model.modelUrl}
-              </a>
-            </dd>
-          </div>
-          <div className="flex">
-            <dt className="w-36 font-medium text-gray-500">Node URL:</dt>
-            <dd className="break-all text-gray-800">{model.endpointUrl}</dd>
-          </div>
-          <div className="flex">
-            <dt className="w-36 font-medium text-gray-500">
-              Number of Nodes:
-            </dt>
-            <dd className="text-gray-800">{model.requiredNodes}</dd>
-          </div>
-          <div className="flex">
-            <dt className="w-36 font-medium text-gray-500">Active Nodes:</dt>
-            <dd className="text-gray-800">{activeNodes}</dd>
-          </div>
+        <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-sm">
+          <dt className="font-medium text-gray-500">Model URL:</dt>
+          <dd>
+            <a
+              href={model.modelUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="break-all text-blue-600 hover:underline"
+            >
+              {model.modelUrl}
+            </a>
+          </dd>
+          <dt className="font-medium text-gray-500">Node URL:</dt>
+          <dd className="break-all text-gray-800">{model.endpointUrl}</dd>
+          <dt className="font-medium text-gray-500">Number of Nodes:</dt>
+          <dd className="text-gray-800">{model.requiredNodes}</dd>
+          <dt className="font-medium text-gray-500">Active Nodes:</dt>
+          <dd className="text-gray-800">{activeNodes}</dd>
         </dl>
 
         {/* Close Button */}
