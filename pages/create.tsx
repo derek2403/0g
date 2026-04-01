@@ -88,11 +88,11 @@ export default function CreateTask() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-gray-50">
+      <header className="border-b border-gray-200 bg-white px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/" className="text-gray-400 hover:text-white">&larr;</Link>
-          <h1 className="text-xl font-bold">Create FL Task</h1>
+          <Link href="/" className="text-gray-400 hover:text-gray-900">&larr;</Link>
+          <h1 className="text-xl font-bold text-gray-900">Create FL Task</h1>
         </div>
         <ConnectButton />
       </header>
@@ -101,58 +101,58 @@ export default function CreateTask() {
         {!isConnected ? (
           <div className="text-center py-20 text-gray-500">Connect your wallet to create a task</div>
         ) : (
-          <div className="bg-gray-900 rounded-xl p-8 border border-gray-800">
-            <h2 className="text-xl font-semibold mb-6">New Federated Learning Task</h2>
+          <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">New Federated Learning Task</h2>
 
             <div className="space-y-5">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Task Name</label>
+                <label className="block text-sm text-gray-500 mb-1">Task Name</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                  className="w-full border border-gray-200 rounded-lg px-4 py-2 text-gray-900 bg-white focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Description</label>
+                <label className="block text-sm text-gray-500 mb-1">Description</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                  className="w-full border border-gray-200 rounded-lg px-4 py-2 text-gray-900 bg-white focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">Total Rounds</label>
+                  <label className="block text-sm text-gray-500 mb-1">Total Rounds</label>
                   <input
                     type="number"
                     value={totalRounds}
                     onChange={(e) => setTotalRounds(Number(e.target.value))}
                     min={1}
                     max={20}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                    className="w-full border border-gray-200 rounded-lg px-4 py-2 text-gray-900 bg-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">Min Participants</label>
+                  <label className="block text-sm text-gray-500 mb-1">Min Participants</label>
                   <input
                     type="number"
                     value={minParticipants}
                     onChange={(e) => setMinParticipants(Number(e.target.value))}
                     min={1}
                     max={100}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                    className="w-full border border-gray-200 rounded-lg px-4 py-2 text-gray-900 bg-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
               </div>
 
               {/* Model info */}
-              <div className="bg-gray-800/50 rounded-lg p-4 text-sm text-gray-400">
-                <div className="font-medium text-gray-300 mb-2">Model Architecture</div>
+              <div className="rounded-lg bg-gray-100 p-4 text-sm text-gray-600">
+                <div className="font-medium text-gray-900 mb-2">Model Architecture</div>
                 <div>Base: MobileNet V2 (frozen, loaded from CDN)</div>
                 <div>Head: Dense(1280 &rarr; 128, ReLU) &rarr; Dropout(0.3) &rarr; Dense(128 &rarr; 10, Softmax)</div>
                 <div>Classes: {ANIMAL_CLASSES.join(", ")}</div>
@@ -161,7 +161,7 @@ export default function CreateTask() {
               <button
                 onClick={handleCreate}
                 disabled={isCreating || !name}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 px-6 py-3 rounded-lg font-semibold transition"
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition"
               >
                 {isCreating ? "Creating..." : "Create Task & Upload Initial Model"}
               </button>
@@ -169,8 +169,8 @@ export default function CreateTask() {
               {status && (
                 <div className={`text-sm rounded-lg p-3 ${
                   status.includes("Error")
-                    ? "bg-red-900/30 text-red-400"
-                    : "bg-blue-900/30 text-blue-400"
+                    ? "bg-red-50 text-red-600 border border-red-200"
+                    : "bg-blue-50 text-blue-600 border border-blue-200"
                 }`}>
                   {status}
                 </div>
