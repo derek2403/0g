@@ -1,4 +1,3 @@
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -42,15 +41,7 @@ export default function Demo() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-gray-400 hover:text-white">&larr;</Link>
-          <h1 className="text-xl font-bold">Demo Setup</h1>
-        </div>
-        <ConnectButton />
-      </header>
-
+    <div className="min-h-screen bg-gray-950 text-white pt-20">
       <main className="max-w-2xl mx-auto px-6 py-16">
         <div className="bg-gray-900 rounded-xl p-8 border border-gray-800">
           <h2 className="text-2xl font-bold mb-4">Quick Demo</h2>

@@ -1,10 +1,8 @@
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { FL_CONTRACT_ABI, FL_CONTRACT_ADDRESS } from "@/lib/fl-contract-abi";
 import { ANIMAL_CLASSES } from "@/lib/model";
 import type { SerializedModel } from "@/lib/model";
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/router";
 
 export default function CreateTask() {
