@@ -1,4 +1,4 @@
-# PrivTrain
+# Zero Training
 
 A decentralized federated learning framework built on **0G** that enables privacy-preserving collaborative model training. Participants train models locally on their own data, submit encrypted weight updates via **0G Storage**, coordinate training rounds through **on-chain smart contracts**, and mint the final trained model as an **ERC-7857 INFT** (Intelligent NFT).
 
